@@ -1,58 +1,190 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Support AI - Multi-Tenant AI Support Platform
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A modern, robust multi-tenant AI customer support platform built on **Laravel 12**, **PHP 8.4**, **PostgreSQL**, and **Laravel Sanctum**, containerized with **Docker** & **Nginx**.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🌟 Key Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Multi-Tenant Architecture**: Shared database with automatic discriminator column (`tenant_id`) scoping.
+- **Strict Data Isolation**: Guaranteed cross-tenant data separation via [`TenantScope`](app/Models/Scopes/TenantScope.php) and [`BelongsToTenant`](app/Traits/BelongsToTenant.php).
+- **Sanctum API Authentication**: Secure bearer tokens scoped per user and tenant.
+- **Dockerized Environment**: Ready-to-use multi-container setup (PHP 8.4 FPM, Nginx, PostgreSQL 16).
+- **Automated Test Coverage**: Comprehensive feature test suite ensuring zero cross-tenant data leakage.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 🏗️ Multi-Tenancy Architecture
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Support AI guarantees tenant separation across three layers:
+1. **Middleware ([`IdentifyTenant`](app/Http/Middleware/IdentifyTenant.php))**: Binds `currentTenant` in the container from the authenticated user's `tenant_id`.
+2. **Global Scope ([`TenantScope`](app/Models/Scopes/TenantScope.php))**: Injects `WHERE tenant_id = ?` into all database queries automatically.
+3. **Lifecycle Trait ([`BelongsToTenant`](app/Traits/BelongsToTenant.php))**: Auto-assigns `tenant_id` on model creation and provides relationship helpers.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+> 📖 **Read the in-depth guide**: [Multi-Tenant Isolation Architecture & Testing Guide](docs/TENANT_ISOLATION.md)
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
+## 🚀 Quickstart with Docker (Recommended)
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/)
 
+### 1. Clone & Configure Environment
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone <repository-url> support-ai
+cd support-ai
+cp .env.example .env
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Start Containers
+```bash
+docker compose up -d --build
+```
+This launches:
+- **`support_ai_app`**: PHP 8.4 FPM
+- **`support_ai_web`**: Nginx web server on `http://localhost:8000`
+- **`support_ai_db`**: PostgreSQL 16 on `localhost:5433` (configurable via `FORWARD_DB_PORT`)
+- **`support_ai_dbgate`**: DbGate Web Database Manager on `http://localhost:8080`
 
-## Contributing
+### 3. Initialize Application
+```bash
+# Install PHP dependencies
+docker compose exec app composer install
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Generate application encryption key
+docker compose exec app php artisan key:generate
 
-## Code of Conduct
+# Run database migrations
+docker compose exec app php artisan migrate
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Your API is now live at **`http://localhost:8000`**!
 
-## Security Vulnerabilities
+### 4. Database Web GUI (DbGate)
+Visit **[http://localhost:8080](http://localhost:8080)** in your browser:
+- The connection **"Support AI (Postgres)"** is pre-configured and ready to use!
+- Features: Table browser, interactive query editor, visual ER diagrams, JSON viewers, dark mode, and data export.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 💻 Local Development Setup (Without Docker)
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Prerequisites
+- **PHP 8.4+** with `pdo_pgsql`, `mbstring`, `bcmath`, `xml`, `zip`
+- **Composer 2+**
+- **PostgreSQL 14+** running locally
+
+### Steps
+```bash
+# 1. Install dependencies
+composer install
+
+# 2. Environment setup
+cp .env.example .env
+php artisan key:generate
+
+# 3. Configure .env with your local PostgreSQL credentials:
+# DB_CONNECTION=pgsql
+# DB_HOST=127.0.0.1
+# DB_PORT=5432
+# DB_DATABASE=support_ai
+# DB_USERNAME=postgres
+# DB_PASSWORD=your_password
+
+# 4. Run migrations
+php artisan migrate
+
+# 5. Start development server
+php artisan serve
+```
+
+---
+
+## 🧪 Running Tests
+
+Support AI includes automated test suites covering authentication and multi-tenant isolation:
+
+```bash
+# Run all tests
+php artisan test
+
+# Run tenant isolation tests specifically
+php artisan test --filter=TenantIsolationTest
+
+# If using Docker:
+docker compose exec app php artisan test
+```
+
+---
+
+## 📡 API Reference
+
+### Public Routes
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/register` | Register a new tenant and admin user |
+
+#### Example: Register Tenant
+```bash
+curl -X POST http://localhost:8000/api/register \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_name": "Acme Corp",
+    "name": "Alice Admin",
+    "email": "alice@acme.com",
+    "password": "password123"
+  }'
+```
+
+### Authenticated Routes (`Bearer <token>`)
+| Method | Endpoint | Middleware | Description |
+|---|---|---|---|
+| `GET` | `/api/user` | `auth:sanctum` | Get authenticated user info |
+| `GET` | `/api/me` | `auth:sanctum` | Get user & assigned tenant |
+| `GET` | `/api/tenant` | `auth:sanctum`, `tenant` | Get current tenant profile |
+| `GET` | `/api/customers` | `auth:sanctum`, `tenant` | List customers (isolated to current tenant) |
+| `POST` | `/api/customers` | `auth:sanctum`, `tenant` | Create a customer (auto-assigned to tenant) |
+
+---
+
+## 🛠️ Code Quality & Formatting
+
+Format the codebase using Laravel Pint:
+```bash
+# Locally
+./vendor/bin/pint
+
+# In Docker
+docker compose exec app ./vendor/bin/pint
+```
+
+---
+
+## 📂 Project Structure Highlights
+
+```
+support-ai/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/Api/AuthController.php   # Registration & token issuing
+│   │   └── Middleware/IdentifyTenant.php         # Resolves & binds current tenant
+│   ├── Models/
+│   │   ├── Scopes/TenantScope.php               # Global query scope for isolation
+│   │   ├── Customer.php                         # Tenant-scoped Customer model
+│   │   ├── Tenant.php                           # Tenant model
+│   │   ├── Ticket.php                           # Tenant-scoped Ticket model
+│   │   └── User.php                             # User model with Sanctum tokens
+│   └── Traits/
+│       └── BelongsToTenant.php                  # Reusable multi-tenancy trait
+├── docker/
+│   └── nginx/default.conf                       # Nginx server configuration
+├── docs/
+│   └── TENANT_ISOLATION.md                      # In-depth isolation & testing guide
+├── docker-compose.yml                           # Docker Compose orchestration
+├── Dockerfile                                   # PHP 8.4 FPM container specification
+└── tests/
+    └── Feature/TenantIsolationTest.php          # Automated isolation verification
+```
+
